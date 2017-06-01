@@ -1,0 +1,19 @@
+{
+  "name": "r2-d2",
+  "version": "0.1.0",
+  "description": "Reddit 2 Dota 2",
+  "main": "index.js",
+  "author": "Jun Wan Goh <gohjunwan@gmail.com>",
+  "license": "MIT",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "snoowrap": "^1.14.0"
+  },
+  "scripts": {
+    "lint": "bash ./bin/lint.sh",
+    "start": "node index.js"
+  },
+  "devDependencies": {
+    "eslint": "^3.19.0"
+  }
+}
