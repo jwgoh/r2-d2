@@ -2,9 +2,9 @@ var blessed = require('blessed');
 var snoowrap = require('snoowrap');
 
 var config = require('./config');
+var LISTING_STUB = require('./fixtures/Listing');
 
-// FIXME Global variables;
-var SubmissionMap = new Map();
+var SubmissionMap = new Map(); // FIXME Global variables;
 
 // Snoowrap - Reddit
 var reddit = new snoowrap({
@@ -27,18 +27,54 @@ screen.key(['C-c'], function(ch, key) {
   return process.exit(0);
 });
 
+// Header
+blessed.Box({
+  parent: screen,
+  content: 'Welcome to Reddit 2 Dota 2!',
+  width: '100%',
+  height: '10%',
+  top: '0',
+  left: 'center',
+  align: 'center',
+  border: {
+    type: 'line',
+  },
+});
+
+// Footer
+blessed.Box({
+  parent: screen,
+  content: '{bold}Keyboard shortcuts:{/bold} ' +
+    'Quit: Ctrl-C; Esc: Close; Vim keys - j: down, k: up',
+  tags: true,
+  width: '100%',
+  height: '10%',
+  top: '90%',
+  left: 'center',
+  align: 'left',
+  border: {
+    type: 'line',
+  },
+});
+
 var list = blessed.ListTable({
   parent: screen,
   width: '100%',
   height: '80%',
-  top: '20%',
+  top: '10%',
   left: 'center',
-  align: 'center',
-  fg: 'blue',
+  align: 'left',
   border: {
     type: 'line',
   },
   selectedBg: 'green',
+  style: {
+    header: {
+      bold: true,
+    },
+    cell: {
+    },
+  },
   keys: true,
   vi: true,
 });
@@ -47,44 +83,27 @@ list.key('r', function(ch, key) {
   fetchSubreddit();
 });
 
-list.on('select', function(_, index) {
+list.on('select', function(ch, index) {
   var item = list.getItem(index);
   // FIXME MAJOR HACK
   var id = item.content.trim().split(' ')[0];
   var submission = SubmissionMap.get(id);
 
-  var overlayContent =
-    submission.selftext ||
-    submission.url;
+  var content = submission.selftext || submission.url;
+  title.setContent(submission.title);
+  body.setContent(content);
 
-  infoOverlay.setContent(overlayContent);
-  screen.append(infoOverlay);
-  infoOverlay.focus();
+  screen.append(overlay);
+  body.focus();
   screen.render();
 });
 
-// TODO Improve title bar
-blessed.Box({
-  parent: screen,
-  content: 'Welcome to R2D2!',
-  width: '100%',
-  height: '20%',
-  top: '0',
-  left: 'center',
-  align: 'center',
-  border: {
-    type: 'line',
-  },
-  selectedBg: 'green',
-});
-
-var infoOverlay = blessed.Box({
-  content: 'Overlay',
+var overlay = blessed.Box({
   width: '100%',
   height: '80%',
-  top: '20%',
+  top: '10%',
   left: 'center',
-  align: 'center',
+  align: 'left',
   border: {
     type: 'line',
   },
@@ -92,17 +111,53 @@ var infoOverlay = blessed.Box({
   vi: true,
 });
 
-infoOverlay.key(['q', 'escape'], function(ch, key) {
-  infoOverlay.detach();
+var title = blessed.Text({
+  parent: overlay,
+  width: '100%',
+  height: '10%',
+  top: '0',
+  left: 'center',
+  align: 'left',
+  style: {
+    bold: true,
+  },
+  border: {
+    type: 'line',
+  },
+});
+
+var body = blessed.Text({
+  parent: overlay,
+  width: '100%',
+  height: '80%',
+  top: '10%',
+  left: 'center',
+  align: 'left',
+  border: {
+    type: 'line',
+  },
+  keys: true,
+  vi: true,
+  scrollable: true,
+  alwaysScroll: true,
+});
+
+body.key(['escape'], function(ch, key) {
+  overlay.detach();
   list.focus();
   screen.render();
 });
 
 var loading = blessed.Loading({
   parent: screen,
+  top: 'center',
+  left: 'center',
+  align: 'center',
+  width: '20%',
+  height: '10%',
 });
 
-loading.load('Loading Reddit');
+loading.load('Loading Reddit. Sit tight!');
 
 // Init
 fetchSubreddit();
@@ -110,10 +165,27 @@ screen.render();
 
 // Helper functions
 function fetchSubreddit() {
+  if (config.DEBUG) {
+    return setTimeout(function() {
+      setTable(LISTING_STUB);
+    }, config.STUB_RESPONSE_DELAY);
+  }
+
   subreddit
     .getTop({limit: 20, time: 'day'})
     .then(setTable);
 }
+
+var headers = [
+  [
+    'ID',
+    'Title',
+    'Domain',
+    'Text',
+    'Ups',
+    'Score',
+  ],
+];
 
 function setTable(Listing) {
   var submissions = Listing.map(function(submission) {
@@ -129,9 +201,11 @@ function setTable(Listing) {
     ]);
   });
 
-  list.setData(submissions);
+  var data = headers.concat(submissions);
+  list.setData(data);
+  list.focus();
   list.select(0);
-  loading.stop();
+  loading.stop(); // FIXME Should only hide for first load
   screen.render();
 }
 
